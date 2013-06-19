@@ -30,18 +30,14 @@
 include Variables.mk
 
 ifeq ($(OS),Windows_NT)
+$(shell set CYGWIN=nodosfilewarning)
 RM = $(shell rmdir /S /Q build >nul 2>nul)
 MKDIR:=mkdir
 else
-RM:=rm -rf
+RM:=rm -rf build
 MKDIR:=mkdir -p
 endif
 
-$(shell set CYGWIN=nodosfilewarning)
-
-TOOLS_PATH := $(APPLICATION_PATH)/tools/avr/bin
-CC := $(TOOLS_PATH)/avr-gcc
-CXX := $(TOOLS_PATH)/avr-g++
 
 BOARD_DIR := $(APPLICATION_PATH)/hardware/$(PLATFORM)/$(BOARD)
 COMMON_LIB_PATH := $(APPLICATION_PATH)/libraries
@@ -65,7 +61,7 @@ define get_lib_dirs
 $(if $(findstring libraries, $1), LIBDIRS+=$1)
 endef
 
-LIBDEP = $(call deps, sketch_jun01a.cpp foo.c)
+LIBDEP = $(call deps, $(addsuffix .cpp, $(SKETCH_NAME)) $(EXTRA_SOURCES))
 $(foreach dep, $(dir $(LIBDEP)), $(eval $(call get_lib_dirs, $(dep))))
 
 # eval prevents the "Recursive variable `LIBDIRS' references itself (eventually)" to be emitted
@@ -97,32 +93,52 @@ OBJS += $(patsubst $(APPLICATION_PATH)/%.cpp,build/%.o,$(BOARD_CPP_SRCS))
 LOCAL_CPP_SRCS = $(wildcard *.cpp)
 OBJS += $(patsubst %.cpp,build/%.o,$(LOCAL_CPP_SRCS))
 
-all: $(PROJECT_NAME).elf
+all: build/$(SKETCH_NAME).hex
 
-$(PROJECT_NAME).elf: $(OBJS)
+build/$(SKETCH_NAME).elf: $(OBJS)
 	$(info Linking $@)
 	@$(CC) $(LDFLAGS) -o $@ $(OBJS) $(SYS_OBJS) -lc
+
+%.hex: %.elf
+	$(info Creating $@)
+	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 	$(info >>>> Done <<<<)
 
 build/%.o: %.c
+ifeq ($(OS),Windows_NT)
 	$(shell mkdir $(dir $(subst /,\,$@)) >nul 2>nul)
+else
+	@mkdir -p $(dir $@)
+endif
 	$(info Compiling $@)
-	@$(CC) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
+	$(VERBOSE)$(CC) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
 
 build/%.o: %.cpp
+ifeq ($(OS),Windows_NT)
 	$(shell mkdir $(dir $(subst /,\,$@)) >nul 2>nul)
+else
+	@mkdir -p $(dir $@)
+endif
 	$(info Compiling $@)
-	@$(CXX) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
+	$(VERBOSE)$(CXX) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
 
 build/%.o: $(APPLICATION_PATH)/%.c
+ifeq ($(OS),Windows_NT)
 	$(shell mkdir $(dir $(subst /,\,$@)) >nul 2>nul)
+else
+	@mkdir -p $(dir $@)
+endif
 	$(info Compiling $@)
-	@$(CC) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
+	$(VERBOSE)$(CC) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
 
 build/%.o: $(APPLICATION_PATH)/%.cpp
+ifeq ($(OS),Windows_NT)
 	$(shell mkdir $(dir $(subst /,\,$@)) >nul 2>nul)
+else
+	@mkdir -p $(dir $@)
+endif
 	$(info Compiling $@)
-	@$(CXX) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
+	$(VERBOSE)$(CXX) $(MCU) $(CFLAGS) ${CPPFLAGS} -c -o $@ $<
 
 .PHONY: clean
 clean:
