@@ -138,12 +138,16 @@ all: build/$(SKETCH_NAME).hex
 
 build/$(SKETCH_NAME).elf: $(OBJS)
 	$(info Linking $@)
-	$(VERBOSE)$(CC) $(LDFLAGS) -o $@ $(OBJS) $(SYS_OBJS) -lc
+	$(VERBOSE)$(CC) $(LDFLAGS) -o $@ -L. libs.a -lc -lm
 
 %.hex: %.elf
 	$(info Creating $@)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 	$(info >>>> Done <<<<)
+
+libs.a: $(OBJS)
+	$(info Linking $@)
+	@$(AR) rcs $@ $(OBJS)
 
 # Sketch sources
 build/%.o: %.c
