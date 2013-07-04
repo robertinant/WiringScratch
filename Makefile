@@ -27,28 +27,28 @@
 # of the authors and should not be interpreted as representing official policies, 
 # either expressed or implied, of the FreeBSD Project.
 
+######################################
 include Variables.mk
 
 ifeq ($(OS),Windows_NT)
-$(shell set CYGWIN=nodosfilewarning)
+$(shell set CYGWIN = nodosfilewarning)
 RM = $(shell rmdir /S /Q build >nul 2>nul)
-MKDIR:=mkdir
+MKDIR = mkdir
 else
-RM:=rm -rf build
-MKDIR:=mkdir -p
+RM = rm -rf build
+MKDIR = mkdir -p
 endif
+######################################
 
 BOARD_DIR := $(APPLICATION_PATH)/hardware/$(PLATFORM)/$(BOARD)
 COMMON_LIB_PATH := $(APPLICATION_PATH)/libraries
 ARCH_LIB_PATH := $(APPLICATION_PATH)/cores/$(ARCH)/libraries
 ARCH_CORE_PATH := $(APPLICATION_PATH)/cores/$(ARCH)
 COMMON_CORE_DIR := $(APPLICATION_PATH)/cores/Common
-
 DIRS := $(COMMON_LIB_PATH) $(USER_LIB_PATH) $(BOARD_DIR) $(CORES) $(ARCH_CORE_PATH) $(COMMON_CORE_DIR) $(ARCH_LIB_PATH)
 INCLUDE_DIRS = $(foreach dir, $(DIRS), ${sort ${dir ${wildcard ${dir}/*/ ${dir}/*/utility/}}})
-
-# Generate a list for the preprocessor
 CPPFLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
+######################################
 
 # Use the preprocessor to find the dependencies. What we are really after is what libraries the Sketch depends on
 define deps
@@ -59,7 +59,7 @@ endef
 define get_lib_dirs
 $(if $(findstring libraries, ${1}), \
 	$(eval _LIBDIRS = $(filter-out ${1}, $(_LIBDIRS))) \
-	$(eval _LIBDIRS+=${1}))
+	$(eval _LIBDIRS += ${1}))
 endef
 
 # Recursively compute library dependencies for the sources passed as argument
@@ -67,8 +67,8 @@ endef
 # It will then recurse until no further dependencies are found
 # Libraries can depend on libraries can depend on libraries etc
 define compute_dependencies
-$(eval _LIBDIRS:=)
-$(eval _SRCS:= ${1})
+$(eval _LIBDIRS :=)
+$(eval _SRCS := ${1})
 # Compute dependencies for the sources
 $(eval _LIBDEP = $(call deps, $(_SRCS)))
 # Compute the library directories for dependencies
@@ -100,6 +100,7 @@ $(eval TMP_OBJS = $(patsubst $(APPLICATION_PATH)/%.cpp,build/%.o,$(DEP_LIB_CPP_S
 $(eval OBJS += $(patsubst $(USER_LIB_PATH)/%.cpp,build/user_libs/%.o,$(TMP_OBJS)))
 endef
 
+######################################
 CORE_C_SRCS = $(wildcard $(ARCH_CORE_PATH)/*.c)
 OBJS += $(patsubst $(APPLICATION_PATH)/%.c,build/%.o,$(CORE_C_SRCS))
 
@@ -134,18 +135,19 @@ OBJS += $(patsubst %.cpp,build/%.o,$(LOCAL_CPP_SRCS))
 $(eval $(call compute_dependencies, $(addsuffix .cpp, $(SKETCH_NAME)) $(EXTRA_SOURCES)))
 $(eval $(call compute_srcs))
 
+######################################
 all: build/$(SKETCH_NAME).hex
 
-build/$(SKETCH_NAME).elf: $(OBJS)
+build/$(SKETCH_NAME).elf: build/libWiring.a
 	$(info Linking $@)
-	$(VERBOSE)$(CC) $(LDFLAGS) -o $@ -L. libs.a -lc -lm
+	$(VERBOSE)$(CC) $(LDFLAGS) -o $@ -Lbuild build/libWiring.a -lc -lm
 
 %.hex: %.elf
 	$(info Creating $@)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 	$(info >>>> Done <<<<)
 
-libs.a: $(OBJS)
+build/libWiring.a: $(OBJS)
 	$(info Linking $@)
 	@$(AR) rcs $@ $(OBJS)
 
